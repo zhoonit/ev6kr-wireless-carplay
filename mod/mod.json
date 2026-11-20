@@ -1,17 +1,18 @@
 {
   "id": "wireless-carplay-kr",
-  "name": "Wireless CarPlay (EV6 KR, USB Wi-Fi)",
-  "version": "0.2.9",
+  "name": "Wireless Android Auto (K3 KR, USB Wi-Fi)",
+  "version": "0.3.7",
   "hmgapi": ">=1.0.0",
   "authors": [
     "VysseCodes",
     "hwjang"
   ],
   "license": "AGPL-3.0",
-  "description": "Wireless CarPlay on a Korean EV6 without a Wi-Fi chip, over a USB Wi-Fi hotspot (the usb-hotspot-kr mod, or usbwifi.hotspot), with turn-by-turn on the cluster and HUD. Based on HMG-API's wireless-carplay-aa 2.1.0.",
+  "description": "Wireless Android Auto on a Korean K3 (BDPE) without a Wi-Fi chip, over a USB Wi-Fi hotspot (usbwifi.hotspot), with turn-by-turn on the cluster and HUD. CarPlay is off (only the Android Auto feature flag). From ev6kr-wireless-carplay 0.2.9, based on HMG-API's wireless-carplay-aa 2.1.0; the AP hooks follow Korea Projection's AaWifi.",
   "system": {
     "product": [
-      "CVEV.KOR."
+      "CVEV.KOR.",
+      "BDPE.KOR."
     ],
     "firmware": "260902"
   },
@@ -33,19 +34,14 @@
     }
   ],
   "feature_flags": [
-    "com.hkmc.software.connectivity.carplay_wireless"
+    "com.hkmc.software.connectivity.androidauto_wireless"
   ],
   "provides": {
     "star_key": [
       {
-        "id": "carplay",
-        "title": "Apple CarPlay",
-        "broadcast": "com.hkmc.intent.action.DIPO_CUSTOM_SHORTCUT"
-      },
-      {
-        "id": "carplay_maps",
-        "title": "Apple CarPlay 지도",
-        "broadcast": "hmgapi.mods.wireless.CARPLAY_MAPS"
+        "id": "aa_notifications",
+        "title": "Android Auto 알림",
+        "broadcast": "hmgapi.mods.wireless.AA_NOTIFICATIONS"
       }
     ]
   },
@@ -78,6 +74,7 @@
       "framework.navigation_cluster.update_tp_turn_list": "replace",
       "framework.navigation_cluster.update_tp_turn_list_new": "replace",
       "framework.navigation_cluster.update_tp_lane_info": "replace",
+      "framework.navigation_cluster.update_lane_info": "replace",
       "iap2.init_info.check_supports_features": "change",
       "iap2.service.on_create": "observe",
       "iap2.service_receiver.on_receive": "observe",
@@ -102,6 +99,9 @@
       "dipo.bt.set_carplay_bt_address": "replace"
     },
     "native": {
+      "libautoreceiver_infobank.so": [
+        "recipes/aa-tbt-48ee793a.recipe"
+      ],
       "libCarPlayCore.so": [
         "recipes/carplay-core-screen-timeout.recipe",
         "recipes/carplay-core-wifi.recipe"

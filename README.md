@@ -1,3 +1,169 @@
+# K3 KR 무선 안드로이드 오토 (USB Wi-Fi) — ev6kr-wireless-carplay 포크
+
+> [!IMPORTANT]
+> 이 포크는 [hwjang1/ev6kr-wireless-carplay](https://github.com/hwjang1/ev6kr-wireless-carplay)(국내형 EV6 무선 **카플레이**)를
+> 무선 모듈(Wi-Fi 칩)이 없는 **국내형 기아 K3**(`BDPE.KOR`, 펌웨어 260902)에서 **무선 안드로이드 오토**로 쓰도록 바꾼 것입니다.
+> **카플레이는 끕니다**(기능 플래그를 안드로이드 오토 무선 하나로 바꿈). EV6 카플레이를 쓰려면 원본 저장소를 쓰세요.
+> 원본 README는 이 문서 [아래](#ev6-kr-무선-카플레이-usb-wi-fi)에 그대로 있습니다.
+
+> [!WARNING]
+> **모든 사용은 본인 책임입니다.** 원본의 [면책](#면책)이 그대로 적용됩니다. 한 대(K3 BD PE, 260902)에서만 시험했고,
+> 아래 [상태](#상태)의 "차에서 확인 전" 항목은 PC에서 빌드·시험만 했습니다.
+
+## 대상
+
+| 항목 | 값 |
+|---|---|
+| 차 | 기아 K3 BD PE, 국내형 |
+| 내비 소프트웨어 | `BDPE.KOR.0000.V039.001.260902`, onebin `bdpe_kr` |
+| 플랫폼 | Telechips `tcc803x`, Android 4.4.2, `stepofspec` 110 |
+| 순정 Wi-Fi 칩 | **없음** (`[Feature] Hardware(not supported), HW Variant(3)`, SDIO 장치 없음, `wlan0` 없음) |
+| 데이터 USB 포트 | 1개(`4-1`, EV6와 같은 위치). 동글이 차지합니다 |
+| 동글 | ipTIME **AX900MINI**(RTL8831BU, `0bda:b831`, 지금 사용), ipTIME A3000mini(RTL8812BU, `0bda:b812`, 끊김이 잦았음) |
+| 필요한 것 | [NEMESIS](https://github.com/xwtk/hmg_nemesis) 1.16.7, [HMG-API](https://github.com/Open-HMG/HMG-API) 1.0.2, [usbwifi.hotspot](https://github.com/GRT47/HKG_5W_USB_Wlan) v2.0.9 |
+| 폰 | 무선 Android Auto를 지원하는 안드로이드 폰 |
+
+K3 순정 파일을 EV6 국내형 260902와 비교한 결과(차량 정보 수집 USB, `usb/carinfo/`):
+
+- **카플레이 네이티브 라이브러리 6개는 EV6와 똑같습니다.** 레시피가 그대로 맞습니다(이 포크에서는 카플레이를 끄므로 쓰지 않음).
+- DiPO·GPM·BtSettings·프레임워크 등 앱과 프레임워크 odex는 다릅니다. 그래도 EV6 훅 맵의 283개 지점 중 275개가 K3 파일에 같은 이름·시그니처로 있고, **모드가 쓰는 지점은 모두 있습니다**(나머지 8개: 모드가 쓰지 않는 `btsettings.projection_helper` 4개, 수집하지 않은 파일의 4개).
+- AA 라이브러리 `libautoreceiver_infobank.so`(md5 `48ee793a…`)는 니로 하이브리드(Korea Projection 확인 차)와 같은 파일이라, AA 길안내 레시피 `aa-tbt-48ee793a`가 맞습니다.
+
+## 상태
+
+| 기능 | 모드 판 | 상태 |
+|---|---|---|
+| 무선 안드로이드 오토 연결 (화면·소리) | 0.3.1 | **차에서 확인** |
+| 계기판·HUD 길안내 | 0.3.2 | **차에서 확인**(길안내 정보가 계기판으로 들어옴) |
+| 한글 도로 이름 끝 글자 깨짐 고침("학의로" → "학의뀀") | 0.3.3 | 차에서 확인 전 |
+| 길안내 취소 때 안드로이드 오토 강제 종료 | 0.3.3 | 원인 추정 후 수정, 차에서 확인 전 |
+| 계기판 차선 표시 | 0.3.4 | 차에서 확인 전 |
+| ★ 버튼 "Android Auto 알림" | 0.3.5 | 차에서 확인 전(폰의 AA가 이 키를 받는지는 폰이 정함) |
+| 버벅임 요인 하나 줄임 | 0.3.6 | 차에서 확인 전 |
+| ★ 알림 키 segfault 가능성 제거, DiPO USB 전원 리셋 막기 | 0.3.7 | 차에서 확인 전 |
+| 간헐적 끊김 후 즉시 복구 | — | **원인 미확인.** AX900MINI로 바꾼 뒤 한 번 있었고 그 뒤 5분 주행은 문제없음 |
+
+## 동작 원리
+
+| 단계 | 내용 | 담당 |
+|---|---|---|
+| 1 | USB 동글 핫스팟(5GHz, `rtwlanN`)을 순정 무선 프로젝션 SSID·비밀번호로 띄움 | usbwifi.hotspot + `ev6kr.usbap.sync`(SSID·비밀번호를 순정 `softap.conf`에 맞춤) |
+| 2 | 폰 ↔ 헤드유닛 블루투스 RFCOMM으로 무선 AA 협상, 폰에 Wi-Fi 정보(SSID·비밀번호·BSSID·호스트 IP) 전달 | 순정 GPM(`com.google.android.projection.sink`)·폰 프로젝션 앱 + **모드의 `AaWifi`** |
+| 3 | 폰이 동글 핫스팟에 접속, TCP로 AA 세션 | 순정 GPM |
+| 4 | 길안내를 계기판·HUD로 | AA 라이브러리 메모리 패치(`aa-tbt-48ee793a`) + 모드의 `AaTurns` |
+
+순정이 동글 AP를 모르는 데서 생기는 두 문제를 모드가 메웁니다.
+
+1. **AP 상태**: GPM과 폰 프로젝션 앱은 `WifiManager.isWifiApEnabled()`가 참이고 `getWifiApMode()`가 2(프로젝션 AP)일 때만 폰에 Wi-Fi 정보를 보냅니다. 순정 Wi-Fi 서비스는 동글 AP를 모르므로, 동글 인터페이스에 사설 IPv4가 있는 동안 이 두 앱 안에서만 그렇게 답합니다(Korea Projection의 `AaWifi`와 같은 방식, 신호는 동글 주소).
+2. **호스트 IP·BSSID**: GPM의 `sink.wireless.a.dS()`·`dT()`는 네트워크 인터페이스를 돌며 이름이 `wlan0`인 것만 씁니다. **이름 비교는 `getName()`이 아니라 `getDisplayName()`**(odex의 vtable 11번, K3 `core.odex`로 계산)입니다. 두 메서드가 도는 동안 그 스레드에서만, AP 주소를 가진 `rtwlanN`이 두 이름 모두 `wlan0`으로 답하게 합니다. 진짜 `wlan0`이 있으면 바꾸지 않습니다.
+
+## 설치
+
+1. **Korea Projection을 지웁니다**(설치되어 있으면). 그 패키지의 무선 모드가 같은 지점을 훅합니다. NEMESIS Manager → My Packages → Uninstall → 재부팅.
+2. **HMG-API 1.0.2 설치**, HMG-API 앱 → Settings → Hook map → *Map this car from its files* → *Check the map on this car* → 재부팅.
+3. **패키지 설치**: 직접 빌드한 `dist/ev6kr-wireless-carplay-0.2.0-mod0.3.7-nemesis.zip`의 내용물과 usbwifi.hotspot의 `packages/usbwifi.hotspot.zip`을 USB 최상위에 둡니다. 하나의 목록으로 묶은 `NEMESIS.data` 예:
+   ```
+   [nemesis]
+   version=1.1
+   type=list
+
+   [package.0]
+   path=packages/usbwifi.hotspot.zip
+   name=USB WiFi Hotspot Enabler
+
+   [package.1]
+   path=packages/ev6kr.usbap.sync.zip
+   name=EV6 KR CarPlay Hotspot Sync
+
+   [package.2]
+   path=packages/hmgapi.wireless-carplay-kr.zip
+   name=Wireless Android Auto (K3 KR, USB Wi-Fi)
+   ```
+   Package Store에서 **USB WiFi Hotspot Enabler → ① EV6 KR CarPlay Hotspot Sync → ② Wireless Android Auto (K3 KR)** 순서로 설치합니다.
+   이전 판이 있으면 ②는 업데이트로 나옵니다(같은 모드 id, 같은 서명 키일 때).
+4. USB를 빼고 **동글을 꽂은 채 재부팅**. 켜고 **3분 넘게** 둡니다(짧게 여러 번 재부팅하면 HMG-API 부팅 보호가 훅을 끕니다).
+5. `[MAP]` 3초 → usbwifi 대시보드에서 **AP 모드, 5GHz**, SSID가 `Kia_…`(동기화 패키지가 맞춘 순정 값)인지 확인. usbwifi의 자동 업데이트는 끄는 것을 권합니다.
+
+## 폰 연결
+
+1. 폰의 Android Auto 설정에서 **무선 Android Auto**를 켜고 Wi-Fi를 켭니다.
+2. **처음 한 번은** 내비와 폰 양쪽에서 블루투스 등록을 지우고 새로 페어링합니다.
+3. 내비에 "무선 Android Auto 사용" 안내가 뜨면 **사용**. 30초~1분 뒤 AA 화면이 뜹니다. 핫스팟 비밀번호는 직접 입력하지 않습니다.
+4. 시동 뒤 저절로 붙지 않으면 폰 블루투스를 껐다 켭니다(Korea Projection의 자동 연결 보정 `AaReady`는 K3 GPM 구조가 달라 넣지 않았습니다: K3 GPM에는 `mWLDeviceMap`이 없음).
+
+★ 버튼: 차량 설정 → 버튼 설정 → ★ 버튼 → **"Android Auto 알림"**. 고른 뒤 AA를 다시 연결해야 합니다(알림 키는 연결할 때 폰에 알림).
+
+## 모드 설정 (HMG-API 앱)
+
+이 포크에서 추가했거나 기본값을 바꾼 것만 적습니다. 나머지는 원본과 같습니다.
+
+| 키 | 기본 | 내용 |
+|---|---|---|
+| `aa_wifi` | 켬 | 무선 AA가 동글 AP를 쓰게 함(`AaWifi`) |
+| `aa_keys` | 켬 | ★ 버튼 "Android Auto 알림"(`AaKeys`) |
+| `tbt` | 켬 | 계기판·HUD 길안내(AA 라이브러리 패치 포함) |
+| `usb_drives` | 켬 | USB 메모리·허브, **그리고 Wi-Fi 동글**이 유선 AA를 시작하지 않게 |
+| `bridge`, `audio`, `now_playing`, `early_start`, `tbt_standard`, `cluster_artist`, `call_state`, `call_key_phone`, `siri_key`, `audio_resume` | **끔** | 카플레이 전용(원본은 켬) |
+
+## 바꾼 내용 (모드 0.2.9 → 0.3.7)
+
+| 판 | 바꾼 것 | 파일 |
+|---|---|---|
+| — | 차종 추가: `BDPE.KOR.`(모드·동기화 패키지·점검 USB), K3 패치 세트 `bdpe_kr`(순정 파일 14개 md5) | `mod/mod.json`, `mod/patches.json`, `mod/patches/bdpe_kr/`, `apsync/NEMESIS.data`, `usb/preflight/NEMESIS.sh` |
+| — | 차량 정보 수집 USB가 패치 세트·훅 맵 파일 17개의 md5도 적고, `CARINFO-FILES`가 있으면 EV6와 다른 것을 복사 | `usb/carinfo/NEMESIS.sh` |
+| 0.3.0 | 기능 플래그를 `androidauto_wireless`로 바꿈(카플레이 끔), 카플레이 설정 기본 끔, `AaWifi` 추가, AA 길안내 레시피 추가, Wi-Fi 동글 USB id를 유선 AA 제외 목록에 | `mod/mod.json`, `mod/settings.json`, `AaWifi.java`, `Wireless.java`, `mod/recipes/aa-tbt-48ee793a.recipe` |
+| 0.3.1 | GPM이 `getDisplayName()`으로 `wlan0`을 비교하는 것을 찾아 그 메서드도 훅("Failed to find host IP" 해결) | `AaWifi.java` |
+| 0.3.2 | AA 라이브러리 패치를 실제로 요청(`mod.nativePatch(app, "libautoreceiver_infobank.so")`). 원본은 EV6 국내형에 맞는 레시피가 없어 이 호출을 뺐고, `mod.json`에 레시피를 적는 것만으로는 적용되지 않음 | `Wireless.java` |
+| 0.3.3 | Korea Projection의 고친 레시피로 교체: UTF-8 자르기 함수가 이름 끝의 이어지는 바이트만 지워 마지막 한글이 깨지고(EB A1 9C → EB = "뀀"), 빈 이름이면 문자열 앞 메모리를 읽음. 로그 수집 USB가 tombstone·DropBox 앱 크래시 기록을 `EV6KR-TRYLOG/crashes/`에 모음 | `mod/recipes/aa-tbt-48ee793a.recipe`, `usb/trylog/NEMESIS.sh` |
+| 0.3.4 | 폰이 안내하는 동안 순정 내비의 `update_lane_info`도 막음(빈 차로 프레임이 폰의 차로를 지우던 것, Korea Projection 2.3.0과 같음). 차로 수신 로그 `Android Auto: lanes to the cluster: N` | `Wireless.java`, `mod/mod.json`, `AaTurns.java` |
+| 0.3.5 | ★ 버튼 "Android Auto 알림": 연결 때 키 목록(`InputSource.registerKeyCodes`)에 `KEYCODE_NOTIFICATION`(83) 추가, ★ 방송을 받으면 `sendKeyEvent(83)`. ★ 목록의 카플레이 항목 제거 | `AaKeys.java`, `mod/mod.json`, `mod/settings.json` |
+| 0.3.6 | `AaWifi`의 동글 인터페이스 확인을 모드 스레드로 옮김(앱이 AP 상태를 물을 때 기다리지 않게) | `AaWifi.java` |
+| 0.3.7 | `InputSource.shutdown()` 전에 기억한 연결을 지우고 키 보내기와 같은 잠금으로 묶음(끊긴 연결의 네이티브 객체에 키를 보내 GPM이 죽을 수 있던 것). DiPO의 USB 전원 리셋 막기를 카플레이 설정과 상관없이 켬 | `AaKeys.java`, `dipo/Dipo.java` |
+
+## 로그
+
+- HMG-API 로그(앱의 로그 화면 또는 `/data/hmgapi/logs/hmgapi/log.log`)의 `[wireless-carplay-kr] Android Auto:` 줄
+  - `AP hooks in … 5 of 5`, `host IP and BSSID from the dongle's AP interface in …`: 훅이 걸림
+  - `getWifiApMode answered for the dongle's AP on rtwlanN`: 무선 AA가 동글 AP를 씀
+  - `host interface lookup failed on …`: 호스트 IP·BSSID를 못 찾음(0.3.0의 증상)
+  - `native patch libautoreceiver_infobank.so: …`, `turn-by-turn to the cluster for this connection`: 길안내
+  - `lanes to the cluster: N`(logcat): 폰이 차로를 보냄
+  - `notification key offered to the phone`, `★ key: notification key sent`: ★ 알림 키
+  - `USB power reset …`: DiPO가 USB 포트 전원을 껐다 켜려 함(동글이 있으면 막음)
+- 문제가 생기면 동글을 빼고 로그 수집 USB(`dist/ev6kr-trylog-usb.zip`)를 꽂습니다. 간헐적인 문제는 먼저 `EV6KR-DEBUG-ON`으로 진단 로그를 켜 두고 다시 겪은 뒤 수집합니다(로그는 내비 `/data`에 쌓이므로 USB는 켤 때와 수집할 때만 꽂으면 됨). 수집본에는 휴대폰 이름·주소가 들어갈 수 있으니 공개하지 마세요.
+
+## 알려진 제약
+
+- **간헐적 끊김**: 원인 미확인. 후보는 Wi-Fi 링크(usbwifi.hotspot의 hostapd는 5GHz HT20 최소 설정), 핫스팟 재시작(usbwifi 데몬·동기화 패키지·자동 업데이트), AA 세션 재연결. 진단 로그로 가립니다.
+- **버벅임**: 폰의 AA 개발자 설정에서 동영상 해상도를 낮춰 보면 영상 대역폭·디코딩 문제인지 가릴 수 있습니다. GPM은 800x480·1280x720·1920x1080, 30·60fps 중에서 폰과 협상합니다(`protocol.VideoSink`).
+- **길안내 정보는 폰의 지도 앱이 보낼 때만** 나옵니다. 국내에서는 구글 지도가 자동차 길안내를 하지 않습니다.
+- **AA 화면의 개발자 디버그 표시 "permits: disable"**: 폰 쪽 표시라 뜻은 확인하지 못했습니다. GPM이 폰에 보내는 주행 상태(`DrivingStatus`)와 관련된 것으로 보입니다.
+- **카플레이**: 꺼져 있습니다. 같은 모드로 카플레이를 다시 켜려면 기능 플래그를 `carplay_wireless`로 되돌리고 카플레이 설정을 켜야 합니다(K3에서 카플레이는 시험하지 않음).
+- **훅 맵**: 저장소에 K3 맵은 없습니다. 차에서 HMG-API 앱으로 만듭니다.
+- **EV6 국내형**: 이 포크의 모드는 EV6에서도 설치되지만 카플레이가 꺼지고, EV6의 AA 라이브러리(`c4fbccdf…`)에는 맞는 길안내 레시피가 없습니다.
+
+## 빌드
+
+원본 [빌드](#빌드-1)와 같습니다. macOS에서 쓴 환경:
+
+```sh
+brew install openjdk@17                       # keg-only: PATH 앞에 /opt/homebrew/opt/openjdk@17/bin
+brew install --cask android-commandlinetools  # SDK: /opt/homebrew/share/android-commandlinetools
+sdkmanager --sdk_root=/opt/homebrew/share/android-commandlinetools "platforms;android-34" "build-tools;34.0.0"
+git clone https://github.com/Open-HMG/HMG-API.git ../HMG-API && git -C ../HMG-API checkout v1.0.2
+sh tools/build.sh keygen   # 처음 한 번: ~/hmg-private/keys/ev6kr-mods.key (저장소 밖, 백업 필수)
+sh tools/build.sh          # dist/
+```
+
+서명 키가 원본과 다르므로, 원본 릴리스의 모드가 설치된 차에서는 그 모드를 먼저 지워야 이 포크의 모드가 설치됩니다.
+
+## 참고와 출처
+
+- 무선 AA를 국내 Gen5W에서 띄운 방식과 AA 길안내 수정은 [Korea Projection](https://github.com/StopDragon/korea-projection)과 그 HMG-API 포크([StopDragon/HMG-API](https://github.com/StopDragon/HMG-API) `korea-build`, 커밋 `b573ac6`, AGPL-3.0)를 참고·옮겼습니다: `AaWifi`의 WifiManager 훅, 고친 `aa-tbt-48ee793a` 레시피, `update_lane_info` 막기. 자세한 출처는 [NOTICE.md](NOTICE.md).
+- 라이선스는 원본과 같이 AGPL-3.0입니다. 제조사 앱·라이브러리는 포함하지 않습니다(md5 목록과 레시피만).
+
+---
+
 # EV6 KR 무선 카플레이 (USB Wi-Fi)
 
 무선 모듈(Wi-Fi 칩)이 없는 **국내형 기아 EV6**(`CVEV.KOR`, 펌웨어 260902, Gen5W 표준형 내비)에서

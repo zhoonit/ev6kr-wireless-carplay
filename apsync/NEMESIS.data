@@ -7,8 +7,8 @@ package-version=0.2.0
 short-desc="USB Wi-Fi hotspot on the stock CarPlay SSID and password"
 detailed-desc="EV6 KR without a Wi-Fi chip: usbwifi.hotspot's AP on the stock CarPlay SSID, password and channel (softap.conf, sent to the iPhone over iAP2), car LTE sharing off as stock. Launch: sync now. Uninstall puts the USB hotspot's own settings back."
 depends="usbwifi.hotspot"
-os="CVEV.KOR.*"
-models="cvev_kr"
+os="CVEV.KOR.*,BDPE.KOR.*"
+models="cvev_kr,bdpe_kr"
 postinstall=scripts/post.sh
 preuninstall=scripts/preun.sh
 

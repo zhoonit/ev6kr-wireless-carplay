@@ -27,7 +27,7 @@ toast() {
 md5of() { _h=$(md5 "$1" 2>/dev/null); echo "${_h%% *}"; }
 toast "차량 정보 수집 중: '수집 완료' 메시지가 뜰 때까지 USB를 빼지 마세요"
 
-say "carinfo 3"
+say "carinfo 4"
 say "date $(date)"
 say "up $(cat /proc/uptime 2>/dev/null)"
 say ""
@@ -151,6 +151,42 @@ ls /system/lib 2>/dev/null | grep -i -E 'carplay|airplay|iap2' | while read -r f
 done
 ls /system/app 2>/dev/null | grep -i -E 'dipo|iap2|projection|carplay' | while read -r f; do
     case "$REF" in *"/system/app/$f"*) ;; *) say "  /system/app/$f $(md5of /system/app/$f)" ;; esac
+done
+say ""
+
+# ---- the rest of the mod's patch set (mod/patches/<set>/stock) and the files HMG-API maps its hooks
+# from (maps/.../car.json): md5 against the EV6's where known; with CARINFO-FILES, the ones that
+# differ are copied too, for building this car's patch set and hook map off the car
+say "--- patch set and hook map files ('ev6-same' / 'ev6-diff' / 'nofile'; '-' = no EV6 md5 here)"
+REF2="9d7a6b5f74f2fbb56130e7269c9cf5a0 /system/app/HKMC_GPM.apk
+c060a43d7a9234acf3319fa05dd263b1 /system/app/HKMC_GPM.odex
+b813acef42403787ed887c94981b32d4 /system/app/HKMC_Navi_ExSL.apk
+77e3b46f64b0caac5ee9b9946b70ee94 /system/app/HKMC_Navi_ExSL.odex
+c4fbccdf63f7d823f24010afec43c937 /system/lib/libautoreceiver_infobank.so
+dbf374aa8bde80fad95746a67719ce51 /system/framework/com.broadcom.bt.jar
+ecf1d427fcf907d094fc72f7c8900369 /system/framework/framework.odex
+8c278b9f4a4c15b2262e623f989cd5ff /system/framework/core.odex
+19fc288ce14e4d7702206bc5e90ea32d /system/framework/framework2.odex
+27999ee273facc2ff1583377c213fb38 /system/framework/automotive.odex
+9b559da941b0dd1cd32015c307adc41e /system/framework/com.hkmc.ext.hcan.odex
+- /system/app/ButtonSettings.odex
+- /system/app/HKMC_HomeSetting_WP.odex
+- /system/app/Launcher_WP3.odex
+- /system/app/RightScreenHome.odex
+- /system/app/Settings_W.odex
+- /system/app/ThemeSettings.odex"
+echo "$REF2" | while read -r _ref _f; do
+    [ -n "$_f" ] || continue
+    if [ ! -f "$_f" ]; then say "nofile    $_f"; continue; fi
+    _h=$(md5of "$_f")
+    if [ "$_h" = "$_ref" ]; then
+        say "ev6-same  $_h  $_f"
+    else
+        say "ev6-diff  $_h  $_f"
+        if [ -f "$FL" ]; then
+            mkdir -p "$FD" 2>/dev/null && cat "$_f" > "$FD/${_f##*/}" 2>/dev/null || say "          (copy failed)"
+        fi
+    fi
 done
 say ""
 

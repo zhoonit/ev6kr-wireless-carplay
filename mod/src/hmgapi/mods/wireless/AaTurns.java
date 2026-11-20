@@ -485,7 +485,15 @@ final class AaTurns {
         }
         cluster.laneInfo(f);
         laneKey = s;
+        if (laneLogs < LANE_LOGS_MAX) {
+            laneLogs++;
+            Log.i("HMG-API", "[wireless-carplay-kr] Android Auto: lanes to the cluster: " + n);
+        }
     }
+
+    /** "lanes to the cluster: N" lines (lane count only), per process: the phone's map app sends lanes or not */
+    static final int LANE_LOGS_MAX = 100;
+    static int laneLogs;
 
     static int hexByte(String s, int at) {
         if (at + 1 >= s.length()) return -1;

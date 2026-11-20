@@ -96,8 +96,9 @@ public final class Dipo {
         if (bridge) m.nativePatch(a, "libCarPlayCore.so");   // AirPlay sessions over Wi-Fi
         // EV6 KR: SocketGetInterfaceInfo counts the USB Wi-Fi interface (rtwlanN) as Wi-Fi
         if (bridge) m.nativePatch(a, "libCarPlayCoreUtils.so");
-        // EV6 KR: the USB Wi-Fi dongle is on DiPO's only USB port: no USB power resets while it's there
-        if (bridge) Bridge.usbResetGuard(a.classLoader);
+        // EV6 KR: the USB Wi-Fi dongle is on DiPO's only USB port: no USB power resets while it's there.
+        // K3 KR (mod 0.3.7): with CarPlay off too, as the dongle carries Android Auto (each reset try is logged)
+        Bridge.usbResetGuard(a.classLoader);
         if (m.settingBoolean("audio", true)) {
             m.nativePatch(a, "libCarPlayAudio.so");   // offer AAC and Opus on Wi-Fi
             m.nativePatch(a, "libCarPlayUtils.so");   // its AudioConverter calls go to libleafiaaac.so

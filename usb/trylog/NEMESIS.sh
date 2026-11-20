@@ -301,6 +301,16 @@ grab "$UT/dnsmasq.log" usbwifi-dnsmasq.log
 grab "$UT/ui.log" usbwifi-ui.log
 grab /data/hmgapi/logs/hmgapi/log.log hmgapi-log.txt
 grab /data/hmgapi/logs/hmgapi/log.log.1 hmgapi-log.1.txt
+# app crashes that outlive the logcat buffer (K3 KR: Android Auto closing when guidance is cancelled):
+# native tombstones and DropBox's app crash entries (stack traces, no phone names)
+for f in /data/tombstones/tombstone_*; do
+    [ -f "$f" ] || continue
+    mkdir -p "$O/crashes" && grep -v -i -E "$NOSERIAL" "$f" > "$O/crashes/${f##*/}.txt" 2>/dev/null
+done
+for f in /data/system/dropbox/data_app_crash@* /data/system/dropbox/data_app_native_crash@* /data/system/dropbox/system_app_crash@* /data/system/dropbox/system_app_native_crash@*; do
+    [ -f "$f" ] || continue
+    mkdir -p "$O/crashes" && cat "$f" > "$O/crashes/${f##*/}" 2>/dev/null
+done
 dmesg 2>/dev/null | grep -i -E 'rtw|88x2bu|8851bu|usb|hub|over-current|overcurrent|ehci|vbus|hmgapi-hook|panic|oops|unable to handle|internal error|bug:|hung|blocked for' \
     | grep -v -i -E "$NOSERIAL" > "$O/dmesg-usb.txt"
 # the car's hook maps (names only): which points the unit found and which it missed

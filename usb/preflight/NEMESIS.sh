@@ -18,7 +18,9 @@ say ""
 case "$P" in
     CVEV.KOR.*.260902) verdict OK "Korean EV6 on 260902 (the firmware the packages and the map are made for)" ;;
     CVEV.KOR.*) verdict WARN "Korean EV6 but not 260902: the map and the patches were made from 260902; map this car on the unit" ;;
-    *) verdict STOP "not a Korean EV6: these packages are for CVEV.KOR only" ;;
+    BDPE.KOR.*.260902) verdict OK "Korean K3 (BD PE) on 260902: the same CarPlay libraries as the EV6, its own patch set (bdpe_kr); not car-tested yet" ;;
+    BDPE.KOR.*) verdict WARN "Korean K3 (BD PE) but not 260902: the patch set was made from 260902; map this car on the unit" ;;
+    *) verdict STOP "not a Korean EV6 or K3: these packages are for CVEV.KOR and BDPE.KOR only" ;;
 esac
 
 _m=$(md5 /system/bin/app_process 2>/dev/null); _m=${_m%% *}

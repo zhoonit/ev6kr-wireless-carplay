@@ -1,6 +1,7 @@
 {
   "cars": {
-    "CVEV.KOR.": "ev6_kr"
+    "CVEV.KOR.": "ev6_kr",
+    "BDPE.KOR.": "bdpe_kr"
   },
   "stock": "patches/{set}/stock",
   "expect": "patches/{set}/expect",

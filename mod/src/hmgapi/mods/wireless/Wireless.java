@@ -51,10 +51,15 @@ public final class Wireless extends ModEntry {
     static volatile int btComponent;
     /** the iAP2 server's route guidance flag was set (logged once per process) */
     static volatile boolean rgOffered;
-    /** NavigationCluster's turn-by-turn calls: the car navigation's own guidance, off while a phone guides */
+    /**
+     * NavigationCluster's turn-by-turn calls: the car navigation's own guidance, off while a phone guides.
+     * K3 KR (mod 0.3.4): update_lane_info too, or the car navigation's empty lane frames wipe the phone's
+     * lanes off the cluster (as Korea Projection's wireless-carplay-aa 2.3.0, StopDragon/HMG-API 38b4432)
+     */
     static final String[] NAVI_TBT = { "update_tbt_info", "update_tbt_sub_info", "update_tbt_sub_info_b", "update_tbt_sub_info2",
         "update_tbt_sub_info2_b", "update_tbt_sub_info_2c", "update_remain_dis", "update_tp_crossroad_name",
-        "update_tp_destination_name", "update_tp_turn_list", "update_tp_turn_list_new", "update_tp_lane_info" };
+        "update_tp_destination_name", "update_tp_turn_list", "update_tp_turn_list_new", "update_tp_lane_info",
+        "update_lane_info" };
 
     /** EV6 KR: the cluster's song line and the voice button, in system_server (SystemHooks) */
     @Override
@@ -68,6 +73,10 @@ public final class Wireless extends ModEntry {
         if (IAP2.equals(app.packageName)) iap2(mod, app);
         if (GPM.equals(app.packageName) && mod.settingBoolean("usb_drives", true)) usbDrives(mod, app);
         if (GPM.equals(app.packageName) && mod.settingBoolean("tbt", true)) gpmTurnByTurn(mod, app);
+        // K3 KR: wireless Android Auto on the USB dongle's AP (AaWifi; does nothing while no dongle interface has the AP address)
+        if ((GPM.equals(app.packageName) || AaWifi.PHONEPROJ.equals(app.packageName)) && mod.settingBoolean("aa_wifi", true)) AaWifi.hook(mod, app);
+        // K3 KR: the ★ key's "Android Auto 알림" (AaKeys)
+        if (GPM.equals(app.packageName) && mod.settingBoolean("aa_keys", true)) AaKeys.hook(mod, app);
         // EV6 KR: no Phone Projection menu hook (US/Canada only in wireless-carplay-aa, and HMG-API's
         // on-car mapper misses btsettings.projection_helper on the Korean BtSettings: one unmapped
         // point would turn all of this mod's hooks off)
@@ -227,8 +236,9 @@ public final class Wireless extends ModEntry {
             mod.log("Android Auto: stepofspec is 999 or more, GPM's own turn-by-turn runs (HMG-API's stays off)");
             return;
         }
-        // EV6 KR: no AA library patch (its recipes don't fit the Korean libautoreceiver_infobank.so,
-        // so the turn-by-turn extras for Android Auto aren't there; the hooks below just find nothing)
+        // the AA library: protocol 1.6 and the turn-by-turn extras packed into its callbacks, in memory (file stays stock).
+        // K3 KR's libautoreceiver_infobank.so (48ee793a) fits aa-tbt-48ee793a; EV6 KR's doesn't (logged, the hooks below find nothing)
+        mod.nativePatch(app, "libautoreceiver_infobank.so");
         mod.hook(cl, "gpm.navigation_status.init", new MethodHook() {
             @Override
             protected void beforeHookedMethod(Param p) {
@@ -329,7 +339,7 @@ public final class Wireless extends ModEntry {
                 UsbDevice d = i.getParcelableExtra("device");
                 if (!notPhone(d)) return;
                 p.setResult(null);
-                mod.log("USB drive or hub (" + d.getDeviceName() + "), not starting wired Android Auto");
+                mod.log((wifiDongle(d) ? "USB Wi-Fi dongle (" : "USB drive or hub (") + d.getDeviceName() + "), not starting wired Android Auto");
             }
         });
         mod.log("USB drive hook in " + app.processName);
@@ -370,9 +380,27 @@ public final class Wireless extends ModEntry {
         }
     }
 
-    /** true when the device has interfaces and every one is mass storage or a hub */
+    /**
+     * USB Wi-Fi dongles the hotspot drivers take (88x2bu, 8851bu; usbwifi.hotspot's list): GPM would
+     * try wired Android Auto on them too, and a wired start that never connects blocks wireless
+     */
+    static final String[] WIFI_DONGLES = { "0bda:b812", "0bda:b82c", "0bda:b81a", "0bda:b820", "0bda:b82b",
+        "2357:012d", "2357:0138", "2357:0115", "0b05:184c", "0b05:1841", "0b05:19aa", "7392:b822", "7392:c822",
+        "2001:331c", "2001:331e", "0846:9055", "13b1:0043", "056e:4011",
+        "0bda:b831", "0bda:b851", "0bda:b832", "0bda:1a2b", "3625:010b", "2357:0142", "2c4e:0128", "2001:332a",
+        "7392:e611", "056e:4027", "056e:4028", "0411:03ed" };
+
+    static boolean wifiDongle(UsbDevice d) {
+        String id = String.format("%04x:%04x", d.getVendorId(), d.getProductId());
+        for (String w : WIFI_DONGLES) if (w.equals(id)) return true;
+        return false;
+    }
+
+    /** true when the device is a known USB Wi-Fi dongle, or has interfaces and every one is mass storage or a hub */
     static boolean notPhone(UsbDevice d) {
-        if (d == null || d.getInterfaceCount() == 0) return false;
+        if (d == null) return false;
+        if (wifiDongle(d)) return true;
+        if (d.getInterfaceCount() == 0) return false;
         for (int k = 0; k < d.getInterfaceCount(); k++) {
             int cls = d.getInterface(k).getInterfaceClass();
             if (cls != USB_CLASS_MASS_STORAGE && cls != USB_CLASS_HUB) return false;
