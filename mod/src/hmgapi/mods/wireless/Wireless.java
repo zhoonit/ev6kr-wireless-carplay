@@ -53,13 +53,16 @@ public final class Wireless extends ModEntry {
     static volatile boolean rgOffered;
     /**
      * NavigationCluster's turn-by-turn calls: the car navigation's own guidance, off while a phone guides.
-     * K3 KR (mod 0.3.4): update_lane_info too, or the car navigation's empty lane frames wipe the phone's
-     * lanes off the cluster (as Korea Projection's wireless-carplay-aa 2.3.0, StopDragon/HMG-API 38b4432)
+     * Its lane frames (update_lane_info) are held back only while the phone's lanes are on the cluster
+     * (AaTurns.ACTION_PHONE_LANES, mod 0.3.8): K3 KR's car navigation sends its own lanes at crossings
+     * even without a route, and 0.3.4, which held them back always (as Korea Projection's
+     * wireless-carplay-aa 2.3.0), left no lanes at all with a map app that sends none
      */
     static final String[] NAVI_TBT = { "update_tbt_info", "update_tbt_sub_info", "update_tbt_sub_info_b", "update_tbt_sub_info2",
         "update_tbt_sub_info2_b", "update_tbt_sub_info_2c", "update_remain_dis", "update_tp_crossroad_name",
-        "update_tp_destination_name", "update_tp_turn_list", "update_tp_turn_list_new", "update_tp_lane_info",
-        "update_lane_info" };
+        "update_tp_destination_name", "update_tp_turn_list", "update_tp_turn_list_new", "update_tp_lane_info" };
+    /** the phone's lanes are on the cluster (AaTurns.ACTION_PHONE_LANES), in the car navigation's process */
+    static volatile boolean phoneLanes;
 
     /** EV6 KR: the cluster's song line and the voice button, in system_server (SystemHooks) */
     @Override
@@ -111,6 +114,24 @@ public final class Wireless extends ModEntry {
             }
         };
         for (String m : NAVI_TBT) mod.hook(null, "framework.navigation_cluster." + m, skip);
+        mod.hook(null, "framework.navigation_cluster.update_lane_info", new MethodHook() {
+            @Override
+            protected void beforeHookedMethod(Param p) {
+                if (phoneLanes && Car.phoneGuiding(app.context)) p.setResult(null);
+            }
+        });
+        try {
+            app.context.registerReceiver(new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context c, Intent i) {
+                    boolean on = i.getBooleanExtra("on", false);
+                    if (on != phoneLanes) mod.log("navigation: the phone's lanes " + (on ? "on the cluster, the car's held back" : "gone, the car's lanes again"));
+                    phoneLanes = on;
+                }
+            }, new IntentFilter(AaTurns.ACTION_PHONE_LANES));
+        } catch (Throwable t) {
+            mod.error("navigation: phone lanes receiver", t);
+        }
         mod.log("navigation: turn-by-turn yields to the phone in " + app.processName);
     }
 

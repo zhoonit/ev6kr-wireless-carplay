@@ -37,11 +37,13 @@ K3 순정 파일을 EV6 국내형 260902와 비교한 결과(차량 정보 수�
 | 계기판·HUD 길안내 | 0.3.2 | **차에서 확인**(길안내 정보가 계기판으로 들어옴) |
 | 한글 도로 이름 끝 글자 깨짐 고침("학의로" → "학의뀀") | 0.3.3 | 차에서 확인 전 |
 | 길안내 취소 때 안드로이드 오토 강제 종료 | 0.3.3 | 원인 추정 후 수정, 차에서 확인 전 |
-| 계기판 차선 표시 | 0.3.4 | 차에서 확인 전 |
-| ★ 버튼 "Android Auto 알림" | 0.3.5 | 차에서 확인 전(폰의 AA가 이 키를 받는지는 폰이 정함) |
+| 계기판 차선 표시 | 0.3.4 → 0.3.8 | 0.3.4에서 **차선이 아예 사라짐**(차에서 확인: 순정 내비의 차로까지 막았고 폰 차로는 오지 않음). 0.3.8에서 폰 차로가 올 때만 막도록 고침, 차에서 확인 전 |
+| 추천 차로 강조 | 0.3.9 | 진단 로그만 추가. 네이버 지도는 AA 화면에 추천 차로를 그리지만, 계기판용 차로 데이터를 보내는지는 미확인 |
+| ★ 버튼 "Android Auto 알림" | 0.3.5 | **차에서 확인: 알림은 안 열림.** 폰의 AA가 알림 키(83)를 알림으로 쓰지 않고, 포커스 테두리만 생김(알림이 아닌 곳) |
 | 버벅임 요인 하나 줄임 | 0.3.6 | 차에서 확인 전 |
 | ★ 알림 키 segfault 가능성 제거, DiPO USB 전원 리셋 막기 | 0.3.7 | 차에서 확인 전 |
 | 간헐적 끊김 후 즉시 복구 | — | **원인 미확인.** AX900MINI로 바꾼 뒤 한 번 있었고 그 뒤 5분 주행은 문제없음 |
+| HMG-API 앱을 열 때 AA 재연결 | — | **차에서 확인**: GPM 프로세스는 살아 있고 AA 세션만 다시 연결됨(HMG-API 로그). 앱이 열리며 도는 `engine plan`의 부하로 보임 → [알려진 제약](#알려진-제약) |
 
 ## 동작 원리
 
@@ -61,7 +63,7 @@ K3 순정 파일을 EV6 국내형 260902와 비교한 결과(차량 정보 수�
 
 1. **Korea Projection을 지웁니다**(설치되어 있으면). 그 패키지의 무선 모드가 같은 지점을 훅합니다. NEMESIS Manager → My Packages → Uninstall → 재부팅.
 2. **HMG-API 1.0.2 설치**, HMG-API 앱 → Settings → Hook map → *Map this car from its files* → *Check the map on this car* → 재부팅.
-3. **패키지 설치**: 직접 빌드한 `dist/ev6kr-wireless-carplay-0.2.0-mod0.3.7-nemesis.zip`의 내용물과 usbwifi.hotspot의 `packages/usbwifi.hotspot.zip`을 USB 최상위에 둡니다. 하나의 목록으로 묶은 `NEMESIS.data` 예:
+3. **패키지 설치**: 직접 빌드한 `dist/ev6kr-wireless-carplay-0.2.0-mod0.3.9-nemesis.zip`의 내용물과 usbwifi.hotspot의 `packages/usbwifi.hotspot.zip`을 USB 최상위에 둡니다. 하나의 목록으로 묶은 `NEMESIS.data` 예:
    ```
    [nemesis]
    version=1.1
@@ -91,7 +93,7 @@ K3 순정 파일을 EV6 국내형 260902와 비교한 결과(차량 정보 수�
 3. 내비에 "무선 Android Auto 사용" 안내가 뜨면 **사용**. 30초~1분 뒤 AA 화면이 뜹니다. 핫스팟 비밀번호는 직접 입력하지 않습니다.
 4. 시동 뒤 저절로 붙지 않으면 폰 블루투스를 껐다 켭니다(Korea Projection의 자동 연결 보정 `AaReady`는 K3 GPM 구조가 달라 넣지 않았습니다: K3 GPM에는 `mWLDeviceMap`이 없음).
 
-★ 버튼: 차량 설정 → 버튼 설정 → ★ 버튼 → **"Android Auto 알림"**. 고른 뒤 AA를 다시 연결해야 합니다(알림 키는 연결할 때 폰에 알림).
+★ 버튼: 차량 설정 → 버튼 설정 → ★ 버튼 → **"Android Auto 알림"**. 고른 뒤 AA를 다시 연결해야 합니다(알림 키는 연결할 때 폰에 알림). 지금은 포커스 테두리만 생기고 알림은 열리지 않습니다([상태](#상태)).
 
 ## 모드 설정 (HMG-API 앱)
 
@@ -105,7 +107,7 @@ K3 순정 파일을 EV6 국내형 260902와 비교한 결과(차량 정보 수�
 | `usb_drives` | 켬 | USB 메모리·허브, **그리고 Wi-Fi 동글**이 유선 AA를 시작하지 않게 |
 | `bridge`, `audio`, `now_playing`, `early_start`, `tbt_standard`, `cluster_artist`, `call_state`, `call_key_phone`, `siri_key`, `audio_resume` | **끔** | 카플레이 전용(원본은 켬) |
 
-## 바꾼 내용 (모드 0.2.9 → 0.3.7)
+## 바꾼 내용 (모드 0.2.9 → 0.3.9)
 
 | 판 | 바꾼 것 | 파일 |
 |---|---|---|
@@ -119,6 +121,8 @@ K3 순정 파일을 EV6 국내형 260902와 비교한 결과(차량 정보 수�
 | 0.3.5 | ★ 버튼 "Android Auto 알림": 연결 때 키 목록(`InputSource.registerKeyCodes`)에 `KEYCODE_NOTIFICATION`(83) 추가, ★ 방송을 받으면 `sendKeyEvent(83)`. ★ 목록의 카플레이 항목 제거 | `AaKeys.java`, `mod/mod.json`, `mod/settings.json` |
 | 0.3.6 | `AaWifi`의 동글 인터페이스 확인을 모드 스레드로 옮김(앱이 AP 상태를 물을 때 기다리지 않게) | `AaWifi.java` |
 | 0.3.7 | `InputSource.shutdown()` 전에 기억한 연결을 지우고 키 보내기와 같은 잠금으로 묶음(끊긴 연결의 네이티브 객체에 키를 보내 GPM이 죽을 수 있던 것). DiPO의 USB 전원 리셋 막기를 카플레이 설정과 상관없이 켬 | `AaKeys.java`, `dipo/Dipo.java` |
+| 0.3.8 | 순정 내비의 `update_lane_info`는 **폰 차로가 계기판에 있을 때만** 막음: GPM이 폰 차로 켜짐/꺼짐을 방송(`hmgapi.mods.wireless.PHONE_LANES`)하고 순정 내비 프로세스가 받아 판단. K3 순정 내비는 경로 없이도 교차로 차로를 보내므로, 차로를 보내지 않는 지도 앱에서는 순정 차로가 그대로 나옴. (★ 알림 키 뒤에 선택 키를 이어 보내는 안은 포커스가 알림에 있지 않아 넣지 않음) | `AaTurns.java`, `Wireless.java` |
+| 0.3.9 | 차로 진단: AA 라이브러리의 차로 이벤트(34) 원문과 버린 이유를 HMG-API 로그에 남김(프로세스당 200줄). 로그 수집 USB가 메모리 기록(`memory.txt`: lowmemorykiller·OOM 커널 로그, meminfo, 프로세스별 VmRSS·oom_adj)을 모음 | `AaTurns.java`, `usb/trylog/NEMESIS.sh` |
 
 ## 로그
 
@@ -127,13 +131,18 @@ K3 순정 파일을 EV6 국내형 260902와 비교한 결과(차량 정보 수�
   - `getWifiApMode answered for the dongle's AP on rtwlanN`: 무선 AA가 동글 AP를 씀
   - `host interface lookup failed on …`: 호스트 IP·BSSID를 못 찾음(0.3.0의 증상)
   - `native patch libautoreceiver_infobank.so: …`, `turn-by-turn to the cluster for this connection`: 길안내
-  - `lanes to the cluster: N`(logcat): 폰이 차로를 보냄
+  - `lanes event from the library: "…"`: AA 라이브러리가 폰의 차로(16진수 차로 모양)를 넘김. 없으면 지도 앱이 계기판용 차로를 보내지 않는 것
+  - `lanes to the cluster: N` / `lanes dropped: …`: 계기판에 보냄 / 형식 문제로 버림
+  - `navigation: the phone's lanes on the cluster…` / `…gone, the car's lanes again`: 순정 차로를 막음 / 다시 통과
+  - 위 줄들은 모두 HMG-API 앱의 Logs 화면에 나옵니다(HMG-API 로그 수집기가 모든 프로세스의 `HMG-API` 태그를 모음)
   - `notification key offered to the phone`, `★ key: notification key sent`: ★ 알림 키
   - `USB power reset …`: DiPO가 USB 포트 전원을 껐다 켜려 함(동글이 있으면 막음)
 - 문제가 생기면 동글을 빼고 로그 수집 USB(`dist/ev6kr-trylog-usb.zip`)를 꽂습니다. 간헐적인 문제는 먼저 `EV6KR-DEBUG-ON`으로 진단 로그를 켜 두고 다시 겪은 뒤 수집합니다(로그는 내비 `/data`에 쌓이므로 USB는 켤 때와 수집할 때만 꽂으면 됨). 수집본에는 휴대폰 이름·주소가 들어갈 수 있으니 공개하지 마세요.
 
 ## 알려진 제약
 
+- **AA 중에 HMG-API 앱을 열면 AA가 끊겼다가 다시 연결될 수 있습니다.** 앱이 열릴 때 상태 표시("Changes not applied")를 위해 `engine plan`을 별도 프로세스로 돌려 순정 파일을 읽고 해시를 내는데, 그 부하로 GPM의 응답이 늦어지는 것으로 봅니다(차에서 GPM 프로세스는 살아 있고 세션만 재연결된 것을 확인). HMG-API 앱의 동작이라 이 모드로는 막지 않습니다. 설정은 정차 중에 AA를 끊고 바꾸세요. 같은 이유로 usbwifi.hotspot의 자동 업데이트와 진단 로그는 꺼 두는 것을 권합니다.
+- **★ 알림 키**: 폰의 AA가 `KEYCODE_NOTIFICATION`을 알림 열기로 쓰지 않습니다. AA에 차 버튼용 동작이 정해진 키는 `KEYCODE_NAVIGATION`(65538), `KEYCODE_MEDIA`(65537), `KEYCODE_TEL`(65540), `KEYCODE_VOICE_ASSIST`(231)/`KEYCODE_SEARCH`(84)이고(K3 GPM의 AA 키 표에서 확인), 범용 `KEYCODE_PRIMARY_BUTTON`(65541)은 정해진 동작을 확인하지 못했습니다. 알림을 여는 키는 없는 것으로 보입니다.
 - **간헐적 끊김**: 원인 미확인. 후보는 Wi-Fi 링크(usbwifi.hotspot의 hostapd는 5GHz HT20 최소 설정), 핫스팟 재시작(usbwifi 데몬·동기화 패키지·자동 업데이트), AA 세션 재연결. 진단 로그로 가립니다.
 - **버벅임**: 폰의 AA 개발자 설정에서 동영상 해상도를 낮춰 보면 영상 대역폭·디코딩 문제인지 가릴 수 있습니다. GPM은 800x480·1280x720·1920x1080, 30·60fps 중에서 폰과 협상합니다(`protocol.VideoSink`).
 - **길안내 정보는 폰의 지도 앱이 보낼 때만** 나옵니다. 국내에서는 구글 지도가 자동차 길안내를 하지 않습니다.

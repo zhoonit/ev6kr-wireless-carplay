@@ -1,6 +1,7 @@
 package hmgapi.mods.wireless;
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.Handler;
 import android.text.format.DateFormat;
 import android.util.Log;
@@ -85,6 +86,7 @@ final class AaTurns {
             return;
         }
         if (ev == EV_LANES) {
+            laneLog("lanes event from the library: \"" + str + "\"");
             sendLanes(str);
             return;
         }
@@ -433,6 +435,7 @@ final class AaTurns {
 
     void hudBlank() {
         laneKey = "";
+        phoneLanes(false);
         cluster.tbtSubInfo2C(0, 0, 0, 0, 0, 0, 0, 0, 0);
         byte[] lanes = new byte[81];
         lanes[0] = LANES;
@@ -467,7 +470,10 @@ final class AaTurns {
         int n = 0;
         if (s.length() >= 2) {
             n = hexByte(s, 0);
-            if (n < 0 || n > 8) return;
+            if (n < 0 || n > 8) {
+                laneLog("lanes dropped: count " + n + " (the cluster frame takes 0..8)");
+                return;
+            }
         }
         byte[] f = new byte[81];
         f[0] = LANES;
@@ -475,24 +481,56 @@ final class AaTurns {
         for (int k = 0; k < n; k++) {
             int at = k * 8 + 2;
             int b = hexByte(s, at);
-            if (b < 0) return;
+            if (b < 0) {
+                laneLog("lanes dropped: lane " + k + " has no type byte (length " + s.length() + ")");
+                return;
+            }
             f[k + 3] = (byte) b;
             for (int j = 0; j < 3; j++) {
                 b = hexByte(s, at + 2 + j * 2);
-                if (b < 0) return;
+                if (b < 0) {
+                    laneLog("lanes dropped: lane " + k + " arrow " + j + " missing (length " + s.length() + ")");
+                    return;
+                }
                 f[k * 3 + 19 + j] = (byte) b;
             }
         }
         cluster.laneInfo(f);
         laneKey = s;
-        if (laneLogs < LANE_LOGS_MAX) {
-            laneLogs++;
-            Log.i("HMG-API", "[wireless-carplay-kr] Android Auto: lanes to the cluster: " + n);
+        phoneLanes(n > 0);
+        laneLog("lanes to the cluster: " + n);
+    }
+
+    /**
+     * A lane line to HMG-API's log (its keeper takes the HMG-API tag from every process: the app's Logs
+     * tab), up to LANE_LOGS_MAX per process. Lane strings are hex lane shapes only, nothing personal
+     */
+    static void laneLog(String s) {
+        if (laneLogs >= LANE_LOGS_MAX) return;
+        laneLogs++;
+        Log.i("HMG-API", "[wireless-carplay-kr] Android Auto: " + s);
+    }
+
+    /**
+     * mod 0.3.8: whether the phone's lanes are on the cluster, told to the car navigation's process
+     * (Wireless.navigation): it holds back its own lane frames only while they are. Map apps that send
+     * no lanes leave the car navigation's lanes on the cluster (0.3.4 held them back always: no lanes at all)
+     */
+    static final String ACTION_PHONE_LANES = "hmgapi.mods.wireless.PHONE_LANES";
+    boolean lanesOn;
+
+    void phoneLanes(boolean on) {
+        if (on == lanesOn) return;
+        lanesOn = on;
+        try {
+            context.sendBroadcast(new Intent(ACTION_PHONE_LANES).putExtra("on", on));
+        } catch (Throwable t) {
+            Log.w("HMG-API", "[wireless-carplay-kr] Android Auto: phone lanes broadcast failed: " + t);
         }
     }
 
-    /** "lanes to the cluster: N" lines (lane count only), per process: the phone's map app sends lanes or not */
-    static final int LANE_LOGS_MAX = 100;
+    /** lane log lines per process (mod 0.3.9: the library's lane events too, and why one was dropped) */
+    static final int LANE_LOGS_MAX = 200;
     static int laneLogs;
 
     static int hexByte(String s, int at) {

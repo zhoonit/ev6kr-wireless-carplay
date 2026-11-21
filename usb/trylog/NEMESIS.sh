@@ -311,6 +311,27 @@ for f in /data/system/dropbox/data_app_crash@* /data/system/dropbox/data_app_nat
     [ -f "$f" ] || continue
     mkdir -p "$O/crashes" && cat "$f" > "$O/crashes/${f##*/}" 2>/dev/null
 done
+# apps the kernel killed for memory leave no tombstone, only kernel log lines (K3 KR: Android Auto
+# restarting when the HMG-API app opened): the low memory killer's lines and limits, memory now,
+# each process's size and priority (names and numbers only)
+{
+    echo "--- kernel log: low memory killer and out of memory"
+    dmesg 2>/dev/null | grep -i -E 'lowmemorykiller|low memory|out of memory|oom|killing|killed process' | grep -v -i -E "$NOSERIAL"
+    echo "--- lowmemorykiller limits (minfree in 4 KB pages, adj)"
+    for p in minfree adj; do echo "$p=$(cat /sys/module/lowmemorykiller/parameters/$p 2>/dev/null)"; done
+    echo "--- meminfo"; cat /proc/meminfo
+    echo "--- processes (pid, oom_adj, VmRSS, name)"
+    # (KitKat's toolbox has no tr: the name is status's Name line, 15 characters at most)
+    for d in /proc/[0-9]*; do
+        [ -f "$d/status" ] || continue
+        _n=; _r=
+        while read -r _k _v _u; do
+            case "$_k" in Name:) _n=$_v ;; VmRSS:) _r="$_v $_u" ;; esac
+        done < "$d/status" 2>/dev/null
+        [ -n "$_r" ] || continue   # kernel threads have no VmRSS
+        echo "${d##*/} $(cat "$d/oom_adj" 2>/dev/null) $_r $_n"
+    done
+} > "$O/memory.txt" 2>&1
 dmesg 2>/dev/null | grep -i -E 'rtw|88x2bu|8851bu|usb|hub|over-current|overcurrent|ehci|vbus|hmgapi-hook|panic|oops|unable to handle|internal error|bug:|hung|blocked for' \
     | grep -v -i -E "$NOSERIAL" > "$O/dmesg-usb.txt"
 # the car's hook maps (names only): which points the unit found and which it missed
