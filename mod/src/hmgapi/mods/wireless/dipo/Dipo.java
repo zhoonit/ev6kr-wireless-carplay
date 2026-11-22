@@ -85,8 +85,10 @@ public final class Dipo {
     public static void start(ModContext m, LoadedApp a) {
         mod = m;
         app = a;
-        tbt = m.settingBoolean("tbt", true);
         bridge = m.settingBoolean("bridge", true);
+        // K3 KR (mod 0.4.0): CarPlay turn-by-turn only with CarPlay on (the dongle holds the only USB
+        // port, so there's no wired CarPlay either); the DiPO part still guards the port's power
+        tbt = bridge && m.settingBoolean("tbt", true);
         nowPlaying = m.settingBoolean("now_playing", true);
         callState = bridge && m.settingBoolean("call_state", true);
         // the call and voice buttons, and CarPlay music after a restart (CarKeys)

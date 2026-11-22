@@ -64,6 +64,25 @@ public final class Wireless extends ModEntry {
     /** the phone's lanes are on the cluster (AaTurns.ACTION_PHONE_LANES), in the car navigation's process */
     static volatile boolean phoneLanes;
 
+    /**
+     * Is a phone guiding, for the car navigation's cluster calls (mod 0.4.0, K3 KR): Car.phoneGuiding
+     * makes a GPM manager and asks GPM over binder, then DiPO too, on every call, and the car
+     * navigation makes several a second. The answer is kept GUIDING_MS, and with CarPlay off
+     * (setting "bridge") only Android Auto is asked.
+     */
+    static final long GUIDING_MS = 500L;
+    private static volatile long guidingAt;
+    private static volatile boolean guidingNow;
+
+    static boolean guiding(Context c, boolean carPlay) {
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (guidingAt == 0 || now - guidingAt >= GUIDING_MS) {
+            guidingNow = carPlay ? Car.phoneGuiding(c) : Car.androidAutoGuiding(c);
+            guidingAt = now;
+        }
+        return guidingNow;
+    }
+
     /** EV6 KR: the cluster's song line and the voice button, in system_server (SystemHooks) */
     @Override
     public void zygoteInit(ModContext mod) {
@@ -107,17 +126,18 @@ public final class Wireless extends ModEntry {
      */
     private void navigation(final ModContext mod, final LoadedApp app) {
         if (!mod.settingBoolean("tbt", true)) return;
+        final boolean carPlay = mod.settingBoolean("bridge", true);
         MethodHook skip = new MethodHook() {
             @Override
             protected void beforeHookedMethod(Param p) {
-                if (Car.phoneGuiding(app.context)) p.setResult(null);
+                if (guiding(app.context, carPlay)) p.setResult(null);
             }
         };
         for (String m : NAVI_TBT) mod.hook(null, "framework.navigation_cluster." + m, skip);
         mod.hook(null, "framework.navigation_cluster.update_lane_info", new MethodHook() {
             @Override
             protected void beforeHookedMethod(Param p) {
-                if (phoneLanes && Car.phoneGuiding(app.context)) p.setResult(null);
+                if (phoneLanes && guiding(app.context, carPlay)) p.setResult(null);
             }
         });
         try {
@@ -145,7 +165,8 @@ public final class Wireless extends ModEntry {
      */
     private void iap2(final ModContext mod, LoadedApp app) {
         final ClassLoader cl = app.classLoader;
-        if (mod.settingBoolean("tbt", true)) {
+        // K3 KR (mod 0.4.0): CarPlay's route guidance offer only with CarPlay on
+        if (mod.settingBoolean("tbt", true) && mod.settingBoolean("bridge", true)) {
             mod.hook(cl, "iap2.init_info.check_supports_features", new MethodHook() {
                 @Override
                 protected void afterHookedMethod(Param p) {

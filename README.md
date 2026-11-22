@@ -63,7 +63,7 @@ K3 순정 파일을 EV6 국내형 260902와 비교한 결과(차량 정보 수�
 
 1. **Korea Projection을 지웁니다**(설치되어 있으면). 그 패키지의 무선 모드가 같은 지점을 훅합니다. NEMESIS Manager → My Packages → Uninstall → 재부팅.
 2. **HMG-API 1.0.2 설치**, HMG-API 앱 → Settings → Hook map → *Map this car from its files* → *Check the map on this car* → 재부팅.
-3. **패키지 설치**: 직접 빌드한 `dist/ev6kr-wireless-carplay-0.2.0-mod0.3.9-nemesis.zip`의 내용물과 usbwifi.hotspot의 `packages/usbwifi.hotspot.zip`을 USB 최상위에 둡니다. 하나의 목록으로 묶은 `NEMESIS.data` 예:
+3. **패키지 설치**: 직접 빌드한 `dist/ev6kr-wireless-carplay-0.2.0-mod0.4.0-nemesis.zip`의 내용물과 usbwifi.hotspot의 `packages/usbwifi.hotspot.zip`을 USB 최상위에 둡니다. 하나의 목록으로 묶은 `NEMESIS.data` 예:
    ```
    [nemesis]
    version=1.1
@@ -107,7 +107,7 @@ K3 순정 파일을 EV6 국내형 260902와 비교한 결과(차량 정보 수�
 | `usb_drives` | 켬 | USB 메모리·허브, **그리고 Wi-Fi 동글**이 유선 AA를 시작하지 않게 |
 | `bridge`, `audio`, `now_playing`, `early_start`, `tbt_standard`, `cluster_artist`, `call_state`, `call_key_phone`, `siri_key`, `audio_resume` | **끔** | 카플레이 전용(원본은 켬) |
 
-## 바꾼 내용 (모드 0.2.9 → 0.3.9)
+## 바꾼 내용 (모드 0.2.9 → 0.4.0)
 
 | 판 | 바꾼 것 | 파일 |
 |---|---|---|
@@ -123,6 +123,7 @@ K3 순정 파일을 EV6 국내형 260902와 비교한 결과(차량 정보 수�
 | 0.3.7 | `InputSource.shutdown()` 전에 기억한 연결을 지우고 키 보내기와 같은 잠금으로 묶음(끊긴 연결의 네이티브 객체에 키를 보내 GPM이 죽을 수 있던 것). DiPO의 USB 전원 리셋 막기를 카플레이 설정과 상관없이 켬 | `AaKeys.java`, `dipo/Dipo.java` |
 | 0.3.8 | 순정 내비의 `update_lane_info`는 **폰 차로가 계기판에 있을 때만** 막음: GPM이 폰 차로 켜짐/꺼짐을 방송(`hmgapi.mods.wireless.PHONE_LANES`)하고 순정 내비 프로세스가 받아 판단. K3 순정 내비는 경로 없이도 교차로 차로를 보내므로, 차로를 보내지 않는 지도 앱에서는 순정 차로가 그대로 나옴. (★ 알림 키 뒤에 선택 키를 이어 보내는 안은 포커스가 알림에 있지 않아 넣지 않음) | `AaTurns.java`, `Wireless.java` |
 | 0.3.9 | 차로 진단: AA 라이브러리의 차로 이벤트(34) 원문과 버린 이유를 HMG-API 로그에 남김(프로세스당 200줄). 로그 수집 USB가 메모리 기록(`memory.txt`: lowmemorykiller·OOM 커널 로그, meminfo, 프로세스별 VmRSS·oom_adj)을 모음 | `AaTurns.java`, `usb/trylog/NEMESIS.sh` |
+| 0.4.0 | 경량화: 순정 내비의 계기판 호출을 막을지 판단하는 "폰이 안내 중인가"를 0.5초 기억(`Car.phoneGuiding`은 호출마다 GPM 매니저를 만들고 바인더로 GPM·DiPO에 물음, 순정 내비는 1초에 여러 번 호출), 카플레이가 꺼져 있으면 GPM에만 물음. 카플레이가 꺼져 있으면 DiPO의 카플레이 길안내·세션 훅과 iAP2 서버의 길안내 제공 훅을 걸지 않음(DiPO의 USB 전원 리셋 막기는 그대로) | `Wireless.java`, `dipo/Dipo.java` |
 
 ## 로그
 
